@@ -15,10 +15,10 @@ mkdir ref/sequences/ ref/methylCseq ref/annotations
 cd ref/sequences
 
 #Download genome
-#echo "Downloading $i genome"
-#python ../../../../scripts/download_genomes.py $i $db
-#rm cookies
-#mv $i.gff.gz ../annotations
+echo "Downloading $i genome"
+python ../../../../scripts/download_genomes.py $i $db
+rm cookies
+mv $i.gff.gz ../annotations
 
 #Prep genome
 echo "Setting up $i"

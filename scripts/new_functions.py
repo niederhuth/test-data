@@ -84,7 +84,7 @@ def get_mC_data(a,mc_type='C',cutoff=0):
 	return e
 
 #for calculating methylation levels in windows across the genome
-def genome_window_methylation(allc,genome_file,output=(),window_size=100000,stepsize=50000,cutoff=0,chrs=[]):
+def genome_window_methylation(allc,genome_file,output=(),mc_type=['CG','CHG','CHH'],window_size=100000,stepsize=50000,cutoff=0,chrs=[]):
 	#read in allc file
 	a = allc2bed(allc)
 	#create output data frame

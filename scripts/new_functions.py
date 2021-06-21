@@ -44,9 +44,11 @@ def expand_nucleotide_code(mc_type=['C']):
 				'C':['C'],'G':['G'],'T':['T'],'A':['A']}
 	mc_class = list(mc_type)
 	if 'C' in mc_type:
-		mc_class.extend(['CGN', 'CHG', 'CHH','CNN'])
+		mc_class.extend(['CNN'])
 	elif 'CG' in mc_type:
 		mc_class.extend(['CGN'])
+	elif 'CH' in mc_type:
+		mc_class.extend(['CHN'])
 	mc_class_final = []
 	for motif in mc_class:
 		mc_class_final.extend([''.join(i) for i in product(*[iub_dict[nuc] for nuc in motif])])

@@ -84,6 +84,13 @@ def chr_filter(x,chr):
 def strand_filter(x,strand):
 	return x.strand == strand
 
+#Filter files based on feature names, e.g. gene names
+#Largely intended for use with pybedtools
+#'x' is a line from a bed file
+#name_list is a python list of feature names to keep
+def name_filter(x,name_list):
+	return x.name in name_list
+
 
 #Collect mC data for a context
 #If 'site_cutoff_only=True', then the cutoff will only apply to 
@@ -185,7 +192,7 @@ def sf2pf_bed(gff, primary_feature='gene', secondary_feature=(), chrs=[], return
 #These can be anything, as long as the feature name is in the 4th column of the bed file.
 #'mC_bed' is a bedfile created from allc2bed
 #'feat_bed' is a bedfile of the features you want to map to
-#'feat_list' is an optional list of the features you want to look at. It needs to be a 
+#'feature_ids' is an optional list of specific feature ids you want to look at. It needs to be a 
 #python list, e.g. in the format ['x','y','z']. It can be used to restict analyses to 
 #a subset of features, or included in case data may be missing, which will guarantee 
 #that these features are always in the output file, even with an 'NA' value. 
@@ -195,11 +202,11 @@ def sf2pf_bed(gff, primary_feature='gene', secondary_feature=(), chrs=[], return
 #'site_cutoff_only', when set to True, will only apply the cutoff to the summing up the number of
 #sites, but will calculated the total weighted methylation using all the data regardless of the cutoff.
 #'chrs' is a list of chromosomes or sequences (e.g. scaffolds/contigs) to keep.
-def map_to_bed(mC_bed, feat_bed, output, feat_list=[], mc_type=['CG','CHG','CHH'], 
+def map_to_bed(mC_bed, feat_bed, output, feature_ids=[], mc_type=['CG','CHG','CHH'], 
 	cutoff=0, site_cutoff_only=False):
-	#If a feat_list is not provided, we build one using column 4 of the feat_bed.
-	if not feat_list:
-		feat_list = list(pd.unique(pd.read_csv(pbt.BedTool(feat_bed).fn, sep='\t', 
+	#If a feature_ids is not provided, we build one using column 4 of the feat_bed.
+	if not feature_ids:
+		feature_ids = list(pd.unique(pd.read_csv(pbt.BedTool(feat_bed).fn, sep='\t', 
 			header=None)[3]).astype(str))
 	#Open output file for reading
 	out_file = open(output, 'w')
@@ -227,7 +234,7 @@ def map_to_bed(mC_bed, feat_bed, output, feat_list=[], mc_type=['CG','CHG','CHH'
 		names=['mc_class','mc_count','total','methylated','id'], 
 		dtype={'mc_count':int,'total':int,'methylated':int,'id':str})
 	#We now loop over each primary feature id in our pf_list
-	for feat in feat_list:
+	for feat in feature_ids:
 		#We extract the rows of mapped methylation data for that primary feature id from
 		#from the pandas dataframe
 		feat_map = map_df[map_df['id'] == feat]
@@ -258,38 +265,78 @@ def map_to_bed(mC_bed, feat_bed, output, feat_list=[], mc_type=['CG','CHG','CHH'
 #mapping to a primary feature, e.g. 'gene'
 #'mC_bed' is a bedfile created from allc2bed
 #'gff' is a gff or gtf file
+#'output' is the output file
 #'mc_type' are the specific sequence contexts to look at. Supports expanded nucleotide code, 
 #e.g. 'CHH'
 #'primary_feature' is the main feature to examine, e.g. 'gene'
 #'secondary_feature' is a second sub-feature used to filter data to specific parts of the primary 
 #feature. For example, if you want to restrict analysis of genic methylation to coding sequences 
 #(CDS) or exons.
+#'chrs' is a list of chromosomes or sequences (e.g. scaffolds/contigs) to keep.
+#'feature_ids' is an optional list of specific feature ids you want to look at. It needs to be a 
+#python list, e.g. in the format ['x','y','z']. It can be used to restict analyses to 
+#a subset of features, or included in case data may be missing, which will guarantee 
+#that these features are always in the output file, even with an 'NA' value. 
 #'cutoff' applies a minimum read cutoff to the data. Any site below that cutoff is not counted.
 #'site_cutoff_only', when set to True, will only apply the cutoff to the summing up the number of
 #sites, but will calculated the total weighted methylation using all the data regardless of the cutoff.
-#'chrs' is a list of chromosomes or sequences (e.g. scaffolds/contigs) to keep.
 def map_to_gff(mC_bed, gff, output, mc_type=['CG','CHG','CHH'], primary_feature='gene', 
-	secondary_feature=(), chrs=[], cutoff=0, site_cutoff_only=False):
+	secondary_feature=(), chrs=[], feature_ids=[], cutoff=0, site_cutoff_only=False):
 	#Use sf2pf_bed to map secondary_feature to primary_feature and create
 	sf_pbt_bed,pf_list = sf2pf_bed(gff, primary_feature=primary_feature, 
 		secondary_feature=secondary_feature, chrs=chrs, return_pf_bed=False)
+	#If feature_ids are provided, then all analyses will be restricted to that list of ids
+	if feature_ids:
+		#Use 'name_filter' function to filter sf_pbt_bed for those features
+		sf_pbt_bed = sf_pbt_bed.filter(name_filter,feature_ids)
 	#We now invoke map_to_bed to map mC data to our sf_pbt_bed and call methylation for each feature
 	#in our pf_list. This will output to our 'output' file.
-	map_to_bed(mC_bed, sf_pbt_bed, output, feat_list=pf_list, mc_type=mc_type, 
+	map_to_bed(mC_bed, sf_pbt_bed, output, feature_ids=pf_list, mc_type=mc_type, 
 		cutoff=cutoff, site_cutoff_only=site_cutoff_only)
 	#And we delete our temporary gff database and bed file.
 	for tmp_file in ['temp.db','temp.bed']:
 		remove(tmp_file)
 
 
-#
+#Calculate methylation levels going across a set of genomic features (e.g. genes, transposons) using a set
+#number of windows. This will average the weighted methylation across all those features in those windows. 
+#So if you look at all genes, each window will have data from all genes for that specific region. 
+#Note that this function does not plot data as a set number of basepairs (e.g. from 0-500 bp, etc). 
+#In other words, a window for the gene body may be variable from gene to gene depending on the size of the gene.
+#'mC_bed' is a bedfile created from allc2bed
+#'gff' is a gff or gtf file
+#genome_file is either a fai (generated by samtools faidx) or .genome file used to get a list of chromosomes)
+#'output' is the output file
+#'mc_type' are the specific sequence contexts to look at. Supports expanded nucleotide code, 
+#e.g. 'CHH'
+#'flank_distance' is the number of basepairs upstream or downstream to include in the plot. If set to 
+#zero, then only the primary_feature will be analyzed
+#'window_number' is how many windows you want to use. This number will be applied to each region analysed. 
+#In other words, if 'window_number' = 20, then the upstream region will be made up of 20 windows, the 
+#primary feature will be broken down to 20 windows, the downstream region will be broken down to 20 windows
+#'primary_feature' is the main feature to examine, e.g. 'gene'
+#'secondary_feature' is a second sub-feature used to filter data to specific parts of the primary 
+#feature. For example, if you want to restrict analysis of genic methylation to coding sequences 
+#(CDS) or exons.
 #'chrs' is a list of chromosomes or sequences (e.g. scaffolds/contigs) to keep.
+#'feature_ids' is an optional list of specific feature ids you want to look at. It needs to be a 
+#python list, e.g. in the format ['x','y','z']. It can be used to restict analyses to 
+#a subset of features, or included in case data may be missing, which will guarantee 
+#that these features are always in the output file, even with an 'NA' value. 
+#'cutoff' applies a minimum read cutoff to the data. Any site below that cutoff is not counted.
+#'site_cutoff_only', when set to True, will only apply the cutoff to the summing up the number of
+#sites, but will calculated the total weighted methylation using all the data regardless of the cutoff.
 def metaplot(mc_bed, gff, genome_file, output, mc_type=['CG','CHG','CHH'], flank_distance=2000, 
-	window_number=60, primary_feature='gene', secondary_feature='CDS', chrs=[], cutoff=0, 
-	site_cutoff_only=False):
+	window_number=20, primary_feature='gene', secondary_feature='CDS', chrs=[], feature_ids=[], 
+	cutoff=0, site_cutoff_only=False):
 	#Use sf2pf_bed to map secondary_feature to primary_feature and create
 	sf_pbt_bed,pf_list,pf_pbt_bed = sf2pf_bed(gff, primary_feature=primary_feature, 
 		secondary_feature=secondary_feature, chrs=chrs, return_pf_bed=True)
+	#If feature_ids are provided, then all analyses will be restricted to that list of ids
+	if feature_ids:
+		#Use 'name_filter' function to filter pf_pbt_bed and sf_pbt_bed for those features
+		pf_pbt_bed = pf_pbt_bed.filter(name_filter,feature_ids).saveas(pf_pbt_bed)
+		sf_pbt_bed = sf_pbt_bed.filter(name_filter,feature_ids).saveas(sf_pbt_bed)
 	#If a flanking distance is provided, create bedfiles for the upstream 'u_bed' and downstream 
 	#'d_bed' regions
 	if flank_distance:
@@ -315,10 +362,10 @@ def metaplot(mc_bed, gff, genome_file, output, mc_type=['CG','CHG','CHH'], flank
 		n_bed = f.filter(strand_filter,strand='-').saveas('n_bed.tmp')
 		#Make windows using pybedtools window_maker
 		#Positive strand features
-		pw_bed = pbt.bedtool.BedTool.window_maker(p_bed, b=p_bed, n=int(window_number/3), i='srcwinnum')
+		pw_bed = pbt.bedtool.BedTool.window_maker(p_bed, b=p_bed, n=window_number, i='srcwinnum')
 		#Now the negative strand features with the option 'reverse=True', this makes sures to put 
 		#them in the correct order
-		nw_bed = pbt.bedtool.BedTool.window_maker(n_bed, b=n_bed, n=int(window_number/3), i='srcwinnum', 
+		nw_bed = pbt.bedtool.BedTool.window_maker(n_bed, b=n_bed, n=window_number, i='srcwinnum', 
 			reverse=True)
 		#Combine windows and read in as a pandas dataframe so that we can modify the gene names
 		wdf = pd.read_csv(pw_bed.cat(nw_bed, postmerge=False).fn, header=None, sep="\t")
@@ -348,11 +395,10 @@ def metaplot(mc_bed, gff, genome_file, output, mc_type=['CG','CHG','CHH'], flank
 			#Otherwise, we concatinate it.
 			else:
 				w_bed.cat(pbt.BedTool.from_dataframe(wdf), postmerge=False).saveas('w_bed.tmp')
-		#Add 1/3rd of the window_number to the window_offset, which will then be used in the next
-		#iteration
-		window_offset = window_offset + int(window_number/3)
+		#Add the window_number to the window_offset, which will then be used in the next iteration
+		window_offset = window_offset + window_number
 	#We now invoke map_to_bed to map out methylation data to our windows and write to output
-	map_to_bed(mc_bed, w_bed, output, feat_list=list(map(str, range(1, window_number + 1))), 
+	map_to_bed(mc_bed, w_bed, output, feature_ids=list(map(str, range(1, window_number + 1))), 
 		mc_type=mc_type, cutoff=cutoff, site_cutoff_only=site_cutoff_only)
 	#And we delete our temporary gff database and bed file.
 	for tmp_file in ['temp.db', 'sf_bed.tmp', 'pf_bed.tmp', 'u_bed.tmp', 'd_bed.tmp', 'w_bed.tmp', 

@@ -329,14 +329,17 @@ def map_to_gff(mC_bed, gff, output, mc_type=['CG','CHG','CHH'], primary_feature=
 def metaplot(mc_bed, gff, genome_file, output, mc_type=['CG','CHG','CHH'], flank_distance=2000, 
 	window_number=20, primary_feature='gene', secondary_feature='CDS', chrs=[], feature_ids=[], 
 	cutoff=0, site_cutoff_only=False):
+	#List temporary files created to remove later
+	files=['temp.db', 'sf_bed.tmp', 'pf_bed.tmp', 'u_bed.tmp', 'd_bed.tmp', 'w_bed.tmp', 
+		'p_bed.tmp', 'n_bed.tmp'
 	#Use sf2pf_bed to map secondary_feature to primary_feature and create
 	sf_pbt_bed,pf_list,pf_pbt_bed = sf2pf_bed(gff, primary_feature=primary_feature, 
 		secondary_feature=secondary_feature, chrs=chrs, return_pf_bed=True)
 	#If feature_ids are provided, then all analyses will be restricted to that list of ids
 	if feature_ids:
 		#Use 'name_filter' function to filter pf_pbt_bed and sf_pbt_bed for those features
-		pf_pbt_bed = pf_pbt_bed.filter(name_filter,feature_ids).saveas(pf_pbt_bed)
-		sf_pbt_bed = sf_pbt_bed.filter(name_filter,feature_ids).saveas(sf_pbt_bed)
+		pf_pbt_bed = pf_pbt_bed.filter(name_filter,feature_ids).saveas('pf_bed_filtered.tmp')
+		sf_pbt_bed = sf_pbt_bed.filter(name_filter,feature_ids).saveas('sf_bed_filtered.tmp')
 	#If a flanking distance is provided, create bedfiles for the upstream 'u_bed' and downstream 
 	#'d_bed' regions
 	if flank_distance:
@@ -402,7 +405,7 @@ def metaplot(mc_bed, gff, genome_file, output, mc_type=['CG','CHG','CHH'], flank
 		mc_type=mc_type, cutoff=cutoff, site_cutoff_only=site_cutoff_only)
 	#And we delete our temporary gff database and bed file.
 	for tmp_file in ['temp.db', 'sf_bed.tmp', 'pf_bed.tmp', 'u_bed.tmp', 'd_bed.tmp', 'w_bed.tmp', 
-		'p_bed.tmp', 'n_bed.tmp']:
+		'p_bed.tmp', 'n_bed.tmp', 'sf_bed_filtered.tmp', 'pf_bed_filtered.tmp']:
 		remove(tmp_file)
 
 

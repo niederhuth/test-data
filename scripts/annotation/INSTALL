@@ -1,0 +1,65 @@
+#Maker without MPI
+#Install condo environment - has most of prerequisites
+conda env create -f maker.yml
+
+<<<<<<< HEAD
+
+wget https://www.mpich.org/static/downloads/4.0.1/mpich-4.0.1.tar.gz
+tar -xzvf mpich-4.0.1.tar.gz
+cd mpich-4.0.1
+unset F90
+unset F90FLAGS
+./configure FFLAGS=-fallow-argument-mismatch FCFLAGS=-fallow-argument-mismatch
+
+Download genemark-ES http://exon.gatech.edu/GeneMark/license_download.cgi
+unzip and copy contents to miniconda3/envs/maker/bin/
+=======
+conda activate maker
+#Install maker
+>>>>>>> bc0f01680f9777faafa616acb452f1a78d0eabc9
+Download maker https://www.yandell-lab.org/software/maker.html
+tar -xzvf 
+cd maker/src
+perl Build.pl
+./Build install
+cd ..
+cp bin/* ~/miniconda3/envs/maker/bin/
+cp -R lib/* ~/miniconda3/envs/maker/lib/
+cp -R src ~/miniconda3/envs/maker/
+cp -R perl ~/miniconda3/envs/maker/
+<<<<<<< HEAD
+=======
+#
+
+Download genemark-ES http://exon.gatech.edu/GeneMark/license_download.cgi
+unzip 
+cd gmes_linux_64
+perl change_path_in_perl_scripts.pl ~/miniconda3/envs/maker/bin/
+and copy contents to miniconda3/envs/maker/bin/
+
+#Maker with MPI
+#Install condo environment - has most of prerequisites
+conda env create -f maker_mpi.yml
+conda activate maker
+#
+
+>>>>>>> bc0f01680f9777faafa616acb452f1a78d0eabc9
+
+mkdir build
+cd build
+unset F90
+unset F90FLAGS
+../mpich-4.0.1/configure FFLAGS=-fallow-argument-mismatch FCFLAGS=-fallow-argument-mismatch --prefix=/mnt/home/niederhu/miniconda3/envs/maker_mpi/bin/ 2>&1 | tee c.txt
+
+
+#Download and setup Interproscan
+cd scripts/annotation
+wget https://ftp.ebi.ac.uk/pub/software/unix/iprscan/5/5.56-89.0/interproscan-5.56-89.0-64-bit.tar.gz
+tar -pxzvf interproscan-5.56-89.0-64-bit.tar.gz
+mv interproscan-5.56-89.0 interproscan
+rm interproscan-5.56-89.0-64-bit.tar.gz
+cd interproscan
+python initial_setup.py
+
+
+

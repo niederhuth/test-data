@@ -1,0 +1,2 @@
+species,genotype,sample,condition,datatype,sra,genomes,adapters,genomeSize,misc(unmethylated_chr/lineage/etc)
+Bdistachyon,Bd21,sample,leaf,methylC,no,Bd21,,,ChrL

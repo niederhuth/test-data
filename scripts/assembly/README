@@ -1,0 +1,9 @@
+#Set up conda environments
+
+#Optional: Set up MaSuRCA
+cd scripts/assembly
+conda deactivate #If even base conda env is active, can result in errors
+wget https://github.com/alekseyzimin/masurca/releases/download/v4.0.5/MaSuRCA-4.0.5.tar.gz
+tar -xzvf MaSuRCA-4.0.5.tar.gz
+cd MaSuRCA-4.0.5
+bash install.sh
